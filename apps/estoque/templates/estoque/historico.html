@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Histórico | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Auditoria</p><h1>Histórico</h1><p>Consulte todas as movimentações registradas.</p></div></div>
+<section class="card">
+    <form class="filter-bar" method="get"><input type="search" name="q" value="{{ termo }}" placeholder="Produto ou documento"><select name="tipo"><option value="">Todos os tipos</option><option value="E" {% if tipo == 'E' %}selected{% endif %}>Entrada</option><option value="S" {% if tipo == 'S' %}selected{% endif %}>Saída</option></select><button class="button secondary">Filtrar</button></form>
+    <div class="table-wrap"><table><thead><tr><th>Data/hora</th><th>Tipo</th><th>Produto</th><th>Quantidade</th><th>Loja</th><th>Documento</th><th>Usuário</th></tr></thead><tbody>
+    {% for mov in pagina %}<tr><td>{{ mov.criado_em|date:"d/m/Y H:i" }}</td><td><span class="badge {% if mov.tipo == 'E' %}positive{% else %}negative{% endif %}">{{ mov.get_tipo_display }}</span></td><td>{{ mov.produto.codigo }} · {{ mov.produto.nome }}</td><td>{{ mov.quantidade }} {{ mov.produto.unidade }}</td><td>{{ mov.loja|default:"—" }}</td><td>{{ mov.documento|default:"—" }}</td><td>{{ mov.usuario|default:"—" }}</td></tr>{% empty %}<tr><td colspan="7" class="empty">Nenhuma movimentação encontrada.</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if pagina.paginator.num_pages > 1 %}<div class="pagination">{% if pagina.has_previous %}<a href="?page={{ pagina.previous_page_number }}&q={{ termo }}&tipo={{ tipo }}">Anterior</a>{% endif %}<span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>{% if pagina.has_next %}<a href="?page={{ pagina.next_page_number }}&q={{ termo }}&tipo={{ tipo }}">Próxima</a>{% endif %}</div>{% endif %}
+</section>
+{% endblock %}

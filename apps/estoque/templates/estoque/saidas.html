@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Saídas | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Movimentação</p><h1>Registrar saída</h1><p>Baixe materiais do estoque e vincule uma loja, quando necessário.</p></div></div>
+<section class="card form-card standalone"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button danger" type="submit">Confirmar saída</button></form><p class="form-note">O sistema bloqueia automaticamente saídas maiores que o saldo disponível.</p></section>
+{% endblock %}

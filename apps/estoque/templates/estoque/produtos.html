@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Produtos | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Estoque</p><h1>Produtos</h1><p>Cadastre produtos e acompanhe os saldos.</p></div></div>
+{% if pode_gerenciar %}<section class="card import-card">
+    <div>
+        <p class="eyebrow">Importação em massa</p>
+        <h2>Importar produtos do Excel</h2>
+        <p>Use uma planilha com as colunas TIPO, DESCRIÇÃO, TOTAL e OBS. Quando a descrição se repetir, somente o produto com maior TOTAL será mantido. Em caso de empate, permanece a primeira linha.</p>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="importar">
+        {{ importacao_form.as_p }}
+        <button class="button success" type="submit">Importar XLSX</button>
+    </form>
+</section>{% endif %}
+<div class="layout-form-list">
+    {% if pode_gerenciar %}<section class="card form-card">
+        <h2>Novo produto</h2>
+        <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="cadastrar">{{ form.as_p }}<button class="button primary" type="submit">Salvar produto</button></form>
+    </section>{% endif %}
+    <section class="card">
+        <div class="section-title"><h2>Produtos cadastrados</h2></div>
+        <form class="filter-bar" method="get"><input type="search" name="q" value="{{ termo }}" placeholder="Código ou nome"><button class="button secondary">Pesquisar</button></form>
+        <div class="table-wrap"><table>
+            <thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Saldo</th><th>Mínimo</th><th>Status</th></tr></thead>
+            <tbody>{% for produto in produtos %}<tr><td>{{ produto.codigo }}</td><td>{{ produto.nome }}</td><td>{{ produto.categoria|default:"—" }}</td><td>{{ produto.estoque_atual }} {{ produto.unidade }}</td><td>{{ produto.estoque_minimo }}</td><td>{% if not produto.ativo %}<span class="badge muted">Inativo</span>{% elif produto.abaixo_do_minimo %}<span class="badge negative">Baixo</span>{% else %}<span class="badge positive">Normal</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="6" class="empty">Nenhum produto encontrado.</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </section>
+</div>
+{% endblock %}

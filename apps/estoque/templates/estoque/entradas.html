@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Entradas | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Movimentação</p><h1>Registrar entrada</h1><p>Adicione ao estoque materiais recebidos.</p></div></div>
+<section class="card form-card standalone"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button success" type="submit">Confirmar entrada</button></form></section>
+{% endblock %}

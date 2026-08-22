@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Lojas | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Cadastros</p><h1>Lojas</h1><p>Mantenha os destinos atendidos pela operação.</p></div></div>
+<section class="card import-card">
+    <div>
+        <p class="eyebrow">Importação em massa</p>
+        <h2>Importar cronograma</h2>
+        <p>Selecione o PDF do cronograma. O sistema identifica automaticamente o CÓDIGO, o NOME DA LOJA e a LANE.</p>
+        <p class="help-text">Lojas novas também podem ser cadastradas manualmente abaixo.</p>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="importar">
+        {{ importacao_form.as_p }}
+        <button class="button success" type="submit">Importar cronograma</button>
+    </form>
+</section>
+<div class="layout-form-list">
+    <section class="card form-card"><h2>Nova loja</h2><form method="post">{% csrf_token %}<input type="hidden" name="acao" value="cadastrar">{{ form.as_p }}<button class="button primary" type="submit">Salvar loja</button></form></section>
+    <section class="card"><div class="section-title"><h2>Lojas cadastradas</h2></div><form class="filter-bar" method="get"><input type="search" name="q" value="{{ termo }}" placeholder="Código, nome ou lane"><button class="button secondary">Pesquisar</button></form><div class="table-wrap"><table><thead><tr><th>Código</th><th>Loja</th><th>Lane</th></tr></thead><tbody>{% for loja in lojas %}<tr><td>{{ loja.codigo }}</td><td>{{ loja.nome }}</td><td>{{ loja.lane|default:"—" }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">Nenhuma loja encontrada.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+{% endblock %}

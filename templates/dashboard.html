@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Visão geral</p>
+        <h1>Dashboard</h1>
+        <p>Acompanhe o estoque e a operação em um só lugar.</p>
+    </div>
+    {% if not painel_loja %}<div class="quick-actions">
+        <a class="button success" href="{% url 'estoque:entradas' %}">+ Registrar entrada</a>
+        <a class="button danger" href="{% url 'estoque:saidas' %}">− Registrar saída</a>
+    </div>{% else %}<div class="quick-actions"><a class="button primary" href="{% url 'pedidos:lista' %}">Nova solicitação</a></div>{% endif %}
+</div>
+
+<section class="cards">
+    {% if painel_loja %}
+        <article class="card metric"><span>Pedidos abertos</span><strong>{{ pedidos_abertos }}</strong></article>
+        <article class="card metric warning"><span>Aguardando análise</span><strong>{{ pedidos_aguardando }}</strong></article>
+        <article class="card metric"><span>Em separação</span><strong>{{ pedidos_em_separacao }}</strong></article>
+        <article class="card metric"><span>Separação concluída</span><strong>{{ pedidos_finalizados }}</strong></article>
+    {% else %}
+        <article class="card metric"><span>Produtos ativos</span><strong>{{ total_produtos }}</strong></article>
+        <article class="card metric warning"><span>Abaixo do mínimo</span><strong>{{ total_baixos }}</strong></article>
+        <article class="card metric"><span>Pedidos abertos</span><strong>{{ pedidos_abertos }}</strong></article>
+        <article class="card metric"><span>Romaneios gerados</span><strong>{{ romaneios_gerados }}</strong></article>
+    {% endif %}
+</section>
+
+{% if painel_loja %}
+<section class="card">
+    <div class="section-title"><h2>Meus pedidos recentes</h2><a href="{% url 'pedidos:lista' %}">Ver todos</a></div>
+    <div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Status</th><th></th></tr></thead><tbody>
+        {% for pedido in pedidos_recentes %}<tr><td>#{{ pedido.pk }}</td><td>{{ pedido.data|date:"d/m/Y" }}</td><td><span class="badge status">{{ pedido.get_status_display }}</span></td><td><a href="{% url 'pedidos:detalhe' pedido.pk %}">Abrir</a></td></tr>{% empty %}<tr><td colspan="4" class="empty">Nenhuma solicitação criada.</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>
+{% else %}
+<div class="grid-two">
+    <section class="card">
+        <div class="section-title"><h2>Alertas de estoque</h2><a href="{% url 'estoque:produtos' %}">Ver produtos</a></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Produto</th><th>Saldo</th><th>Mínimo</th></tr></thead>
+                <tbody>
+                {% for produto in produtos_baixos %}
+                    <tr><td>{{ produto.codigo }} · {{ produto.nome }}</td><td class="text-danger">{{ produto.estoque_atual }} {{ produto.unidade }}</td><td>{{ produto.estoque_minimo }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="3" class="empty">Nenhum produto abaixo do mínimo.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="section-title"><h2>Últimas movimentações</h2><a href="{% url 'estoque:historico' %}">Ver histórico</a></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Tipo</th><th>Produto</th><th>Quantidade</th></tr></thead>
+                <tbody>
+                {% for mov in movimentacoes %}
+                    <tr><td><span class="badge {% if mov.tipo == 'E' %}positive{% else %}negative{% endif %}">{{ mov.get_tipo_display }}</span></td><td>{{ mov.produto.nome }}</td><td>{{ mov.quantidade }} {{ mov.produto.unidade }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="3" class="empty">Nenhuma movimentação registrada.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endif %}
+{% endblock %}

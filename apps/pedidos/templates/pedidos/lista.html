@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Solicitações | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Fluxo digital</p>
+        <h1>Solicitações e pedidos</h1>
+        <p>Loja → Supply Chain → Aprovação → Separação.</p>
+    </div>
+</div>
+
+{% if pode_criar %}
+<section class="card order-form-card">
+    <div class="section-title">
+        <h2>Nova solicitação</h2>
+        {% if papel_usuario == PAPEL_LOJA and perfil_usuario.loja %}
+            <span class="badge status">{{ perfil_usuario.loja }}</span>
+        {% endif %}
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="order-header-fields">
+            {% if form.loja %}<div>{{ form.loja.label_tag }}{{ form.loja }}{{ form.loja.errors }}</div>{% endif %}
+            <div>{{ form.data.label_tag }}{{ form.data }}{{ form.data.errors }}</div>
+            <div>{{ form.observacoes.label_tag }}{{ form.observacoes }}{{ form.observacoes.errors }}</div>
+        </div>
+
+        {{ itens_formset.management_form }}
+        {{ itens_formset.non_form_errors }}
+        <div class="table-wrap">
+            <table class="order-items-table">
+                <thead><tr><th>Produto</th><th>Quantidade</th><th>Observação</th><th></th></tr></thead>
+                <tbody data-formset-rows>
+                    {% for item_form in itens_formset %}
+                    <tr>
+                        <td>{{ item_form.produto }}{{ item_form.produto.errors }}</td>
+                        <td>{{ item_form.quantidade }}{{ item_form.quantidade.errors }}</td>
+                        <td>{{ item_form.observacao }}{{ item_form.observacao.errors }}</td>
+                        <td><button class="remove-item" type="button" data-remove-form aria-label="Remover item">×</button></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <template data-empty-form>
+            <tr>
+                <td>{{ itens_formset.empty_form.produto }}</td>
+                <td>{{ itens_formset.empty_form.quantidade }}</td>
+                <td>{{ itens_formset.empty_form.observacao }}</td>
+                <td><button class="remove-item" type="button" data-remove-form aria-label="Remover item">×</button></td>
+            </tr>
+        </template>
+        <div class="order-actions">
+            <button class="button secondary" type="button" data-add-form>Adicionar produto</button>
+            <button class="button primary" type="submit">Enviar ao Supply Chain</button>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section class="card">
+    <div class="section-title"><h2>Fila de pedidos</h2></div>
+    <form class="filter-bar order-filter" method="get">
+        <select name="status" aria-label="Filtrar por status">
+            <option value="">Todos os status</option>
+            {% for codigo, nome in status_opcoes %}
+                <option value="{{ codigo }}" {% if status_filtro == codigo %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+        </select>
+        <button class="button secondary" type="submit">Filtrar</button>
+        <a class="button secondary" href="{% url 'pedidos:lista' %}">Limpar</a>
+    </form>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Nº</th><th>Loja</th><th>Data</th><th>Itens</th><th>Status</th><th>Atualizado</th><th></th></tr></thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                <tr>
+                    <td>#{{ pedido.pk }}</td>
+                    <td>{{ pedido.loja }}<br><small>Lane {{ pedido.lane|default:"—" }}</small></td>
+                    <td>{{ pedido.data|date:"d/m/Y" }}</td>
+                    <td>{{ pedido.itens.count }}</td>
+                    <td><span class="badge status status-{{ pedido.status|lower }}">{{ pedido.get_status_display }}</span></td>
+                    <td>{{ pedido.atualizado_em|date:"d/m/Y H:i" }}</td>
+                    <td><a class="button primary compact" href="{% url 'pedidos:detalhe' pedido.pk %}">Abrir</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="empty">Nenhum pedido encontrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

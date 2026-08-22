@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Importar logins | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Administração</p>
+        <h1>Importar logins de lojas</h1>
+        <p>Crie os usuários usando o código de cada loja como login.</p>
+    </div>
+</div>
+<section class="card import-card">
+    <div>
+        <p class="eyebrow">Acesso em massa</p>
+        <h2>Planilha de credenciais</h2>
+        <p>Envie o arquivo <strong>Logins_Lojas_FY27.xlsx</strong>. O sistema cria as lojas ausentes, os usuários e o vínculo de cada acesso.</p>
+        <p class="help-text">A senha temporária é armazenada somente como hash. O usuário deverá alterá-la no primeiro acesso.</p>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="button success" type="submit">Importar e criar acessos</button>
+    </form>
+</section>
+{% if resultado %}
+<section class="card">
+    <div class="section-title"><h2>Resultado da importação</h2></div>
+    <div class="order-meta-grid">
+        <div><small>Usuários criados</small><strong>{{ resultado.usuarios_criados }}</strong></div>
+        <div><small>Já existentes</small><strong>{{ resultado.usuarios_existentes }}</strong></div>
+        <div><small>Lojas criadas</small><strong>{{ resultado.lojas_criadas }}</strong></div>
+        <div><small>Senhas redefinidas</small><strong>{{ resultado.senhas_redefinidas }}</strong></div>
+    </div>
+    {% if resultado.erros %}
+    <h3>Linhas não importadas</h3>
+    <ul class="errorlist">
+        {% for erro in resultado.erros %}<li>{{ erro }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

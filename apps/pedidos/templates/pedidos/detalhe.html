@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ pedido.pk }} | Controle de Insumos{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Pedido #{{ pedido.pk }}</p>
+        <h1>{{ pedido.loja }}</h1>
+        <p>Lane {{ pedido.lane|default:"—" }} · Solicitação de {{ pedido.data|date:"d/m/Y" }}</p>
+    </div>
+    <div class="quick-actions">
+        <a class="button secondary" href="{% url 'pedidos:lista' %}">Voltar</a>
+        <a class="button primary" href="{% url 'pedidos:imprimir' pedido.pk %}">Imprimir</a>
+    </div>
+</div>
+
+<section class="card order-summary">
+    <div>
+        <span class="badge status status-{{ pedido.status|lower }}">{{ pedido.get_status_display }}</span>
+        {% if pedido.motivo_ultima_acao %}<p class="order-reason"><strong>Última observação:</strong> {{ pedido.motivo_ultima_acao }}</p>{% endif %}
+    </div>
+    <div class="order-meta-grid">
+        <div><small>Criado por</small><strong>{% if pedido.criado_por %}{{ pedido.criado_por.get_full_name|default:pedido.criado_por.username }}{% else %}Registro antigo{% endif %}</strong></div>
+        <div><small>Supply Chain</small><strong>{% if pedido.conferido_por %}{{ pedido.conferido_por.get_full_name|default:pedido.conferido_por.username }}{% else %}—{% endif %}</strong></div>
+        <div><small>Aprovador</small><strong>{% if pedido.aprovado_por %}{{ pedido.aprovado_por.get_full_name|default:pedido.aprovado_por.username }}{% else %}—{% endif %}</strong></div>
+        <div><small>Separação</small><strong>{% if pedido.separado_por %}{{ pedido.separado_por.get_full_name|default:pedido.separado_por.username }}{% else %}—{% endif %}</strong></div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-title"><h2>Produtos do pedido</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Produto</th><th>Solicitado</th><th>Aprovado</th><th>Separado</th><th>Estoque atual</th><th>Observação</th></tr></thead>
+            <tbody>
+                {% for item in itens %}
+                <tr>
+                    <td><strong>{{ item.produto.codigo }}</strong><br>{{ item.produto.nome }}</td>
+                    <td>{{ item.quantidade|floatformat:"-2" }}</td>
+                    <td>{{ item.quantidade_aprovada|default:"—" }}</td>
+                    <td>{{ item.quantidade_separada|floatformat:"-2" }}</td>
+                    <td>{{ item.produto.estoque_atual|floatformat:"-2" }} {{ item.produto.unidade }}</td>
+                    <td>{{ item.observacao|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pedido.observacoes %}<p class="order-reason"><strong>Observações da loja:</strong> {{ pedido.observacoes }}</p>{% endif %}
+</section>
+
+{% if pode_iniciar_conferencia %}
+<section class="card action-card action-supply">
+    <p class="eyebrow">Supply Chain</p><h2>Receber solicitação</h2>
+    <p>Abra a conferência para analisar produtos e quantidades.</p>
+    <form method="post" action="{% url 'pedidos:acao' pedido.pk 'iniciar-conferencia' %}">{% csrf_token %}<button class="button primary" type="submit">Iniciar conferência</button></form>
+</section>
+{% endif %}
+
+{% if pode_conferir %}
+<section class="card action-card action-supply">
+    <p class="eyebrow">Supply Chain</p><h2>Conferência da solicitação</h2>
+    <div class="action-grid">
+        <form method="post" action="{% url 'pedidos:acao' pedido.pk 'encaminhar-aprovacao' %}">
+            {% csrf_token %}<label>Observação opcional</label><textarea name="observacao" rows="2"></textarea>
+            <button class="button success" type="submit">Conferir e enviar para aprovação</button>
+        </form>
+        <details><summary>Ajustar quantidades</summary><form method="post" action="{% url 'pedidos:acao' pedido.pk 'ajustar-supply' %}">{% csrf_token %}{{ ajuste_solicitado_form.as_p }}<button class="button primary" type="submit">Salvar ajustes</button></form></details>
+        <details><summary>Devolver para a loja</summary><form method="post" action="{% url 'pedidos:acao' pedido.pk 'devolver-loja' %}">{% csrf_token %}<label>Motivo obrigatório</label><textarea name="justificativa" rows="2" required></textarea><button class="button secondary" type="submit">Devolver para correção</button></form></details>
+        <details><summary>Recusar solicitação</summary><form method="post" action="{% url 'pedidos:acao' pedido.pk 'recusar-supply' %}">{% csrf_token %}<label>Justificativa obrigatória</label><textarea name="justificativa" rows="2" required></textarea><button class="button danger" type="submit">Recusar</button></form></details>
+    </div>
+</section>
+{% endif %}
+
+{% if pode_corrigir_loja %}
+<section class="card action-card">
+    <p class="eyebrow">Correção da loja</p><h2>Corrigir e reenviar</h2>
+    <form method="post" action="{% url 'pedidos:acao' pedido.pk 'reenviar-loja' %}">{% csrf_token %}{{ ajuste_solicitado_form.as_p }}<button class="button primary" type="submit">Reenviar ao Supply Chain</button></form>
+</section>
+{% endif %}
+
+{% if pode_aprovar %}
+<section class="card action-card action-approval">
+    <p class="eyebrow">Supervisor/Gerente</p><h2>Aprovação</h2>
+    <div class="action-grid">
+        <form method="post" action="{% url 'pedidos:acao' pedido.pk 'aprovar' %}">{% csrf_token %}<label>Observação opcional</label><textarea name="observacao" rows="2"></textarea><button class="button success" type="submit">Aprovar sem alterações</button></form>
+        <details><summary>Ajustar e aprovar</summary><form method="post" action="{% url 'pedidos:acao' pedido.pk 'ajustar-aprovar' %}">{% csrf_token %}{{ ajuste_aprovado_form.as_p }}<button class="button primary" type="submit">Salvar e aprovar</button></form></details>
+        <details><summary>Devolver ao Supply Chain</summary><form method="post" action="{% url 'pedidos:acao' pedido.pk 'devolver-supply-aprovador' %}">{% csrf_token %}<label>Motivo obrigatório</label><textarea name="justificativa" rows="2" required></textarea><button class="button secondary" type="submit">Devolver</button></form></details>
+        <details><summary>Recusar solicitação</summary><form method="post" action="{% url 'pedidos:acao' pedido.pk 'recusar-aprovador' %}">{% csrf_token %}<label>Justificativa obrigatória</label><textarea name="justificativa" rows="2" required></textarea><button class="button danger" type="submit">Recusar</button></form></details>
+    </div>
+</section>
+{% endif %}
+
+{% if pode_iniciar_separacao %}
+<section class="card action-card action-separation">
+    <p class="eyebrow">Equipe de separação</p><h2>Pedido aprovado</h2>
+    <form method="post" action="{% url 'pedidos:acao' pedido.pk 'iniciar-separacao' %}">{% csrf_token %}<button class="button primary" type="submit">Iniciar separação</button></form>
+</section>
+{% endif %}
+
+{% if pode_separar %}
+<section class="card action-card action-separation">
+    <p class="eyebrow">Equipe de separação</p><h2>Registrar atendimento</h2>
+    <div class="action-grid">
+        <form method="post" action="{% url 'pedidos:acao' pedido.pk 'concluir-separacao' %}">{% csrf_token %}{{ separacao_form.as_p }}<p class="form-note">Ao concluir, o estoque será baixado e o romaneio será gerado automaticamente.</p><button class="button success" type="submit">Concluir separação e finalizar</button></form>
+        <form method="post" action="{% url 'pedidos:acao' pedido.pk 'devolver-supply-separacao' %}">{% csrf_token %}<label>Divergência encontrada</label><textarea name="justificativa" rows="2" required></textarea><button class="button secondary" type="submit">Devolver ao Supply Chain</button></form>
+    </div>
+</section>
+{% endif %}
+
+{% if pode_cancelar or pode_excluir %}
+<section class="card danger-zone">
+    <div><p class="eyebrow">Administração</p><h2>Ações restritas</h2></div>
+    <div class="row-actions">
+        {% if pode_cancelar %}<form method="post" action="{% url 'pedidos:acao' pedido.pk 'cancelar' %}">{% csrf_token %}<input name="justificativa" placeholder="Motivo do cancelamento" required><button class="button danger" type="submit">Cancelar pedido</button></form>{% endif %}
+        {% if pode_excluir %}<form method="post" action="{% url 'pedidos:excluir' pedido.pk %}" onsubmit="return confirm('Excluir definitivamente o pedido #{{ pedido.pk }}?');">{% csrf_token %}<button class="button danger" type="submit">Excluir definitivamente</button></form>{% endif %}
+    </div>
+</section>
+{% endif %}
+
+<section class="card">
+    <div class="section-title"><h2>Histórico e auditoria</h2></div>
+    <div class="timeline">
+        {% for evento in historico %}
+        <article>
+            <span></span>
+            <div><strong>{{ evento.acao }}</strong><small>{{ evento.criado_em|date:"d/m/Y H:i" }} · {% if evento.usuario %}{{ evento.usuario.get_full_name|default:evento.usuario.username }}{% else %}Sistema{% endif %}</small>{% if evento.observacao %}<p>{{ evento.observacao }}</p>{% endif %}</div>
+        </article>
+        {% empty %}<p class="empty">Pedido antigo sem eventos registrados.</p>{% endfor %}
+    </div>
+</section>
+{% endblock %}

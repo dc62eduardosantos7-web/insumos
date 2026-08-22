@@ -1,0 +1,30 @@
+<header class="topbar">
+    <div class="nav-wrap">
+        <a class="brand" href="{% url 'dashboard' %}">
+            <span class="brand-mark">CI</span>
+            <span>Controle de Insumos</span>
+        </a>
+        <button class="menu-button" type="button" aria-label="Abrir menu" data-menu-button>☰</button>
+        <nav class="nav-links" data-menu>
+            {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}">Dashboard</a>
+                <a href="{% url 'pedidos:lista' %}">Pedidos</a>
+                {% if papel_usuario == PAPEL_ADMIN or papel_usuario == PAPEL_SUPPLY or papel_usuario == PAPEL_SEPARACAO %}<a href="{% url 'estoque:produtos' %}">Produtos</a>{% endif %}
+                {% if papel_usuario == PAPEL_ADMIN or papel_usuario == PAPEL_SEPARACAO %}
+                    <a href="{% url 'estoque:entradas' %}">Entradas</a>
+                    <a href="{% url 'estoque:saidas' %}">Saídas</a>
+                    <a href="{% url 'estoque:historico' %}">Estoque</a>
+                {% endif %}
+                {% if papel_usuario == PAPEL_ADMIN %}<a href="{% url 'lojas:lista' %}">Lojas</a>{% endif %}
+                {% if papel_usuario == PAPEL_ADMIN %}<a href="{% url 'usuarios:importar_logins' %}">Importar logins</a>{% endif %}
+                {% if papel_usuario == PAPEL_ADMIN or papel_usuario == PAPEL_SEPARACAO %}<a href="{% url 'romaneio:lista' %}">Romaneios</a>{% endif %}
+                {% if user.is_staff or papel_usuario == PAPEL_ADMIN %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}
+                <a href="{% url 'usuarios:trocar_senha' %}">Alterar senha</a>
+                <span class="nav-user">{{ user.get_full_name|default:user.username }}</span>
+                <form class="nav-logout" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sair</button></form>
+            {% else %}
+                <a href="{% url 'login' %}">Entrar</a>
+            {% endif %}
+        </nav>
+    </div>
+</header>
