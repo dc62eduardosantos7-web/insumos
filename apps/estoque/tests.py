@@ -4,6 +4,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.lojas.models import Loja
+from apps.pedidos.models import ItemPedido, Pedido
+
 from .models import ComposicaoKit, Movimentacao, Produto
 
 Usuario = get_user_model()
@@ -73,7 +76,7 @@ class AdminProdutoExcluirTudoTests(TestCase):
 
         self.assertContains(resposta, "Excluir tudo")
 
-    def test_excluir_todos_produtos_sem_vinculos(self):
+    def test_excluir_tudo_arquiva_produtos_sem_apagar_base(self):
         Produto.objects.create(
             codigo="PROD-002",
             nome="Segundo produto",
@@ -88,15 +91,16 @@ class AdminProdutoExcluirTudoTests(TestCase):
         self.assertRedirects(
             resposta, reverse("admin:estoque_produto_changelist")
         )
-        self.assertFalse(Produto.objects.exists())
+        self.assertFalse(Produto.objects.filter(ativo=True).exists())
+        self.assertTrue(Produto.objects.filter(pk=self.produto.pk).exists())
         self.assertTrue(Usuario.objects.filter(pk=self.admin.pk).exists())
 
-    def test_produto_vinculado_cancela_exclusao_sem_apagar_dados(self):
+    def test_excluir_tudo_preserva_movimentacoes(self):
         movimentacao = Movimentacao.objects.create(
             tipo="E",
             produto=self.produto,
             quantidade=Decimal("5"),
-            documento="TESTE-PROTECAO",
+            documento="TESTE-HISTORICO",
             usuario=self.admin,
         )
 
@@ -105,10 +109,30 @@ class AdminProdutoExcluirTudoTests(TestCase):
             {"confirmacao": "sim"},
         )
 
-        self.assertEqual(resposta.status_code, 200)
-        self.assertContains(
-            resposta,
-            "A exclusão foi cancelada porque existem registros vinculados.",
+        self.assertRedirects(
+            resposta, reverse("admin:estoque_produto_changelist")
         )
-        self.assertTrue(Produto.objects.filter(pk=self.produto.pk).exists())
+        self.produto.refresh_from_db()
+        self.assertFalse(self.produto.ativo)
         self.assertTrue(Movimentacao.objects.filter(pk=movimentacao.pk).exists())
+
+    def test_excluir_tudo_preserva_itens_de_pedidos(self):
+        loja = Loja.objects.create(codigo="999", nome="Loja Proteção")
+        pedido = Pedido.objects.create(loja=loja, criado_por=self.admin)
+        item = ItemPedido.objects.create(
+            pedido=pedido,
+            produto=self.produto,
+            quantidade=Decimal("1"),
+        )
+
+        resposta = self.client.post(
+            reverse("admin:estoque_produto_excluir_tudo"),
+            {"confirmacao": "sim"},
+        )
+
+        self.assertRedirects(
+            resposta, reverse("admin:estoque_produto_changelist")
+        )
+        self.produto.refresh_from_db()
+        self.assertFalse(self.produto.ativo)
+        self.assertTrue(ItemPedido.objects.filter(pk=item.pk).exists())

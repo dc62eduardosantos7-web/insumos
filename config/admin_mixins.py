@@ -52,11 +52,19 @@ class ExcluirTudoAdminMixin:
     def preparar_exclusao_total(self, request):
         """Ponto de extensão para remover vínculos antes da exclusão."""
 
+    def get_excluir_tudo_queryset(self, request):
+        return self.model._default_manager.all()
+
+    def executar_exclusao_total(self, request):
+        """Executa a ação e pode devolver uma mensagem de sucesso personalizada."""
+        self.preparar_exclusao_total(request)
+        self.get_excluir_tudo_queryset(request).delete()
+
     def excluir_tudo_view(self, request):
         if not self.pode_excluir_tudo(request):
             raise PermissionDenied
 
-        queryset = self.model._default_manager.all()
+        queryset = self.get_excluir_tudo_queryset(request)
         total = queryset.count()
 
         if request.method == "POST":
@@ -69,9 +77,9 @@ class ExcluirTudoAdminMixin:
             else:
                 try:
                     with transaction.atomic():
-                        total = self.model._default_manager.count()
-                        self.preparar_exclusao_total(request)
-                        self.model._default_manager.all().delete()
+                        queryset = self.get_excluir_tudo_queryset(request)
+                        total = queryset.count()
+                        mensagem_sucesso = self.executar_exclusao_total(request)
                 except ProtectedError:
                     self.message_user(
                         request,
@@ -82,8 +90,11 @@ class ExcluirTudoAdminMixin:
                 else:
                     self.message_user(
                         request,
-                        f"{total} registro(s) de "
-                        f"{self.model._meta.verbose_name_plural} foram excluídos.",
+                        mensagem_sucesso
+                        or (
+                            f"{total} registro(s) de "
+                            f"{self.model._meta.verbose_name_plural} foram excluídos."
+                        ),
                         level=messages.SUCCESS,
                     )
                     return HttpResponseRedirect(self.get_changelist_url())

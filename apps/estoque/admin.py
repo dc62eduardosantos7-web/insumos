@@ -15,9 +15,10 @@ class ComposicaoKitInline(admin.TabularInline):
 @admin.register(Produto)
 class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
     excluir_tudo_descricao = (
-        "Todos os produtos serão removidos, mas lojas, usuários, pedidos, "
-        "romaneios e estoque histórico serão preservados. Se houver produto "
-        "vinculado a um pedido ou movimentação, a operação inteira será cancelada."
+        "Todos os produtos serão retirados do cadastro ativo e não aparecerão "
+        "em novos pedidos. Pedidos, romaneios, lojas, usuários e movimentações "
+        "de estoque serão preservados. Uma nova importação com o mesmo código "
+        "reativará o produto."
     )
     list_display = (
         "codigo",
@@ -42,8 +43,18 @@ class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
     def saldo_disponivel(self, obj):
         return obj.estoque_disponivel
 
-    def preparar_exclusao_total(self, request):
-        ComposicaoKit.objects.all().delete()
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(ativo=True)
+
+    def get_excluir_tudo_queryset(self, request):
+        return Produto.objects.filter(ativo=True)
+
+    def executar_exclusao_total(self, request):
+        total = self.get_excluir_tudo_queryset(request).update(ativo=False)
+        return (
+            f"{total} produto(s) foram retirados do cadastro ativo. "
+            "O histórico foi preservado."
+        )
 
 
 @admin.register(Movimentacao)

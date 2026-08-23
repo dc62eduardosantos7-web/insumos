@@ -100,7 +100,9 @@ def produtos(request):
             return redirect("estoque:produtos")
 
     termo = request.GET.get("q", "").strip()
-    lista = Produto.objects.prefetch_related("componentes_kit__item")
+    lista = Produto.objects.filter(ativo=True).prefetch_related(
+        "componentes_kit__item"
+    )
     if termo:
         lista = lista.filter(Q(codigo__icontains=termo) | Q(nome__icontains=termo))
     return render(
