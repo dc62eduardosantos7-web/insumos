@@ -15,10 +15,10 @@ class ComposicaoKitInline(admin.TabularInline):
 @admin.register(Produto)
 class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
     excluir_tudo_descricao = (
-        "Todos os produtos serão retirados do cadastro ativo e não aparecerão "
-        "em novos pedidos. Pedidos, romaneios, lojas, usuários e movimentações "
-        "de estoque serão preservados. Uma nova importação com o mesmo código "
-        "reativará o produto."
+        "Todos os produtos, inclusive os arquivados, as composições dos kits "
+        "e todo o histórico de entradas e saídas do estoque serão apagados "
+        "permanentemente. Pedidos, romaneios, lojas e usuários serão preservados. "
+        "Se existir produto vinculado a um pedido, a operação inteira será cancelada."
     )
     list_display = (
         "codigo",
@@ -47,13 +47,17 @@ class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
         return super().get_queryset(request).filter(ativo=True)
 
     def get_excluir_tudo_queryset(self, request):
-        return Produto.objects.filter(ativo=True)
+        return Produto.objects.all()
 
     def executar_exclusao_total(self, request):
-        total = self.get_excluir_tudo_queryset(request).update(ativo=False)
+        total_produtos = Produto.objects.count()
+        total_movimentacoes = Movimentacao.objects.count()
+        ComposicaoKit.objects.all().delete()
+        Movimentacao.objects.all().delete()
+        Produto.objects.all().delete()
         return (
-            f"{total} produto(s) foram retirados do cadastro ativo. "
-            "O histórico foi preservado."
+            f"{total_produtos} produto(s) e {total_movimentacoes} movimentação(ões) "
+            "de estoque foram excluídos permanentemente."
         )
 
 
