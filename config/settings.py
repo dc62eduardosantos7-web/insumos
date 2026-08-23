@@ -114,7 +114,14 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        # Durante os testes e o desenvolvimento não existe um manifesto gerado
+        # pelo collectstatic. Em produção, o WhiteNoise continua servindo os
+        # arquivos versionados e comprimidos normalmente.
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
     },
 }
 
