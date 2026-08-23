@@ -86,6 +86,13 @@ class ItemPedido(models.Model):
     produto = models.ForeignKey(
         "estoque.Produto", on_delete=models.PROTECT, related_name="itens_pedido"
     )
+    kit_origem = models.ForeignKey(
+        "estoque.Produto",
+        on_delete=models.PROTECT,
+        related_name="itens_pedido_como_kit",
+        null=True,
+        blank=True,
+    )
     quantidade = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -111,7 +118,8 @@ class ItemPedido(models.Model):
         verbose_name_plural = "itens do pedido"
 
     def __str__(self):
-        return f"{self.produto} × {self.quantidade}"
+        origem = f" ({self.kit_origem.nome})" if self.kit_origem_id else ""
+        return f"{self.produto} × {self.quantidade}{origem}"
 
     @property
     def quantidade_liberada(self):

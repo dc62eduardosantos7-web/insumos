@@ -46,7 +46,10 @@ class MovimentacaoForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["produto"].queryset = Produto.objects.filter(ativo=True).order_by("nome")
+        self.fields["produto"].queryset = Produto.objects.filter(
+            ativo=True,
+            componentes_kit__isnull=True,
+        ).order_by("nome")
 
 
 class SaidaForm(MovimentacaoForm):

@@ -45,7 +45,7 @@ def _pedidos_do_usuario(usuario):
         Pedido.objects.select_related(
             "loja", "romaneio", "criado_por", "conferido_por", "aprovado_por"
         )
-        .prefetch_related("itens__produto")
+        .prefetch_related("itens__produto", "itens__kit_origem")
         .all()
     )
     if papel == PerfilUsuario.LOJA:
@@ -92,12 +92,33 @@ def lista(request):
                     dados = item_form.cleaned_data
                     if not dados or not dados.get("produto"):
                         continue
-                    ItemPedido.objects.create(
-                        pedido=pedido,
-                        produto=dados["produto"],
-                        quantidade=dados["quantidade"],
-                        observacao=dados["observacao"],
+                    produto = dados["produto"]
+                    componentes = list(
+                        produto.componentes_kit.select_related("item")
                     )
+                    if componentes:
+                        ItemPedido.objects.bulk_create(
+                            [
+                                ItemPedido(
+                                    pedido=pedido,
+                                    produto=componente.item,
+                                    kit_origem=produto,
+                                    quantidade=(
+                                        dados["quantidade"]
+                                        * componente.quantidade
+                                    ),
+                                    observacao=dados["observacao"],
+                                )
+                                for componente in componentes
+                            ]
+                        )
+                    else:
+                        ItemPedido.objects.create(
+                            pedido=pedido,
+                            produto=produto,
+                            quantidade=dados["quantidade"],
+                            observacao=dados["observacao"],
+                        )
                 services.registrar_historico(
                     pedido,
                     usuario=request.user,
@@ -136,7 +157,7 @@ def lista(request):
 def detalhe(request, pk):
     papel = _papel_valido(request)
     pedido = _obter_pedido_visivel(request, pk)
-    itens = list(pedido.itens.select_related("produto"))
+    itens = list(pedido.itens.select_related("produto", "kit_origem"))
     contexto = {
         "pedido": pedido,
         "itens": itens,
@@ -190,7 +211,7 @@ def _erros_formulario(form):
 def acao(request, pk, acao):
     papel = _papel_valido(request)
     pedido = _obter_pedido_visivel(request, pk)
-    itens = list(pedido.itens.select_related("produto"))
+    itens = list(pedido.itens.select_related("produto", "kit_origem"))
     try:
         if acao == "iniciar-conferencia":
             _validar_acao(papel, PerfilUsuario.SUPPLY)
@@ -377,7 +398,7 @@ def imprimir(request, pk):
             "aprovado_por",
             "separado_por",
         )
-        .prefetch_related("itens__produto")
+        .prefetch_related("itens__produto", "itens__kit_origem")
         .get(pk=pedido.pk)
     )
     return render(request, "pedidos/imprimir.html", {"pedido": pedido})

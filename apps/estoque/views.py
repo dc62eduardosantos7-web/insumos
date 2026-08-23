@@ -28,7 +28,9 @@ def dashboard(request):
         perfil = obter_perfil(request.user)
         pedidos = pedidos.filter(loja=perfil.loja) if perfil and perfil.loja_id else pedidos.none()
     produtos_baixos = Produto.objects.filter(
-        ativo=True, estoque_atual__lte=F("estoque_minimo")
+        ativo=True,
+        componentes_kit__isnull=True,
+        estoque_atual__lte=F("estoque_minimo"),
     )
     contexto = {
         "total_produtos": Produto.objects.filter(ativo=True).count(),
@@ -98,7 +100,7 @@ def produtos(request):
             return redirect("estoque:produtos")
 
     termo = request.GET.get("q", "").strip()
-    lista = Produto.objects.all()
+    lista = Produto.objects.prefetch_related("componentes_kit__item")
     if termo:
         lista = lista.filter(Q(codigo__icontains=termo) | Q(nome__icontains=termo))
     return render(

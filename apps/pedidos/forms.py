@@ -91,6 +91,11 @@ class QuantidadesPedidoForm(forms.Form):
             self.fields["justificativa"].label = "Observação da separação"
         self.itens = list(itens)
         for item in self.itens:
+            origem_kit = (
+                f" · componente de {item.kit_origem.nome}"
+                if item.kit_origem_id
+                else ""
+            )
             if modo == "aprovada":
                 inicial = item.quantidade_aprovada or item.quantidade
                 rotulo = "Quantidade aprovada"
@@ -104,7 +109,10 @@ class QuantidadesPedidoForm(forms.Form):
                 rotulo = "Quantidade solicitada"
                 minimo = 0.01
             self.fields[f"item_{item.pk}"] = forms.DecimalField(
-                label=f"{item.produto.codigo} · {item.produto.nome} — {rotulo}",
+                label=(
+                    f"{item.produto.codigo} · {item.produto.nome}"
+                    f"{origem_kit} — {rotulo}"
+                ),
                 min_value=minimo,
                 max_digits=12,
                 decimal_places=2,
@@ -132,4 +140,3 @@ class ObservacaoForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"rows": 2}),
     )
-

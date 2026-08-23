@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 
@@ -44,10 +45,61 @@ class Produto(models.Model):
 
     @property
     def abaixo_do_minimo(self):
-        return self.estoque_atual <= self.estoque_minimo
+        return self.estoque_disponivel <= self.estoque_minimo
+
+    @property
+    def eh_kit(self):
+        return self.componentes_kit.exists()
+
+    @property
+    def estoque_disponivel(self):
+        componentes = list(self.componentes_kit.all())
+        if not componentes:
+            return self.estoque_atual
+        return min(
+            componente.item.estoque_atual // componente.quantidade
+            for componente in componentes
+        )
 
     def __str__(self):
         return f"{self.codigo} - {self.nome}"
+
+
+class ComposicaoKit(models.Model):
+    kit = models.ForeignKey(
+        Produto,
+        on_delete=models.CASCADE,
+        related_name="componentes_kit",
+    )
+    item = models.ForeignKey(
+        Produto,
+        on_delete=models.PROTECT,
+        related_name="componente_de_kits",
+    )
+    quantidade = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=1,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+
+    class Meta:
+        ordering = ["item__nome"]
+        verbose_name = "componente do kit"
+        verbose_name_plural = "componentes do kit"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["kit", "item"],
+                name="componente_unico_por_kit",
+            )
+        ]
+
+    def clean(self):
+        if self.kit_id and self.item_id and self.kit_id == self.item_id:
+            raise ValidationError("Um kit não pode conter a si próprio.")
+
+    def __str__(self):
+        return f"{self.kit.nome}: {self.quantidade} × {self.item.nome}"
 
 
 class Movimentacao(models.Model):

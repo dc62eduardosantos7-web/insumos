@@ -54,6 +54,10 @@ def _itens_consolidados(romaneio):
                 consolidado["pedidos"].append(pedido.pk)
             if item.observacao and item.observacao not in consolidado["observacoes"]:
                 consolidado["observacoes"].append(item.observacao)
+            if item.kit_origem_id:
+                origem = f"Componente de {item.kit_origem.nome}"
+                if origem not in consolidado["observacoes"]:
+                    consolidado["observacoes"].append(origem)
     return sorted(itens.values(), key=lambda item: (item["nome"], item["codigo"]))
 
 
@@ -62,6 +66,7 @@ def imprimir(request, pk):
     romaneio = get_object_or_404(
         Romaneio.objects.select_related("loja").prefetch_related(
             "pedidos__itens__produto",
+            "pedidos__itens__kit_origem",
             "pedidos__separado_por",
         ),
         pk=pk,

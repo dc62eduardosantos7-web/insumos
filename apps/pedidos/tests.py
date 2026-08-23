@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.estoque.models import Movimentacao, Produto
+from apps.estoque.models import ComposicaoKit, Movimentacao, Produto
 from apps.lojas.models import Loja
 from apps.romaneio.models import Romaneio
 from apps.usuarios.models import PerfilUsuario
@@ -45,8 +45,9 @@ class FluxoPedidoTests(TestCase):
         PerfilUsuario.objects.create(usuario=usuario, papel=papel, loja=loja)
         return usuario
 
-    def criar_solicitacao(self, quantidade="10", usuario=None):
+    def criar_solicitacao(self, quantidade="10", usuario=None, produto=None):
         self.client.force_login(usuario or self.usuario_loja)
+        produto = produto or self.produto
         resposta = self.client.post(
             reverse("pedidos:lista"),
             {
@@ -56,13 +57,79 @@ class FluxoPedidoTests(TestCase):
                 "itens-INITIAL_FORMS": "0",
                 "itens-MIN_NUM_FORMS": "0",
                 "itens-MAX_NUM_FORMS": "1000",
-                "itens-0-produto": str(self.produto.pk),
+                "itens-0-produto": str(produto.pk),
                 "itens-0-quantidade": quantidade,
                 "itens-0-observacao": "Urgente",
             },
         )
         self.assertEqual(resposta.status_code, 302)
         return Pedido.objects.latest("pk")
+
+    def test_kit_e_expandido_e_baixa_estoque_dos_componentes(self):
+        segundo_componente = Produto.objects.create(
+            codigo="INS-KIT-002",
+            nome="Segundo componente do kit",
+            estoque_atual=Decimal("20"),
+            unidade="UN",
+        )
+        kit = Produto.objects.create(
+            codigo="KIT-TESTE",
+            nome="KIT TESTE",
+            categoria="KIT",
+            unidade="UN",
+        )
+        ComposicaoKit.objects.create(
+            kit=kit,
+            item=self.produto,
+            quantidade=Decimal("1"),
+        )
+        ComposicaoKit.objects.create(
+            kit=kit,
+            item=segundo_componente,
+            quantidade=Decimal("2"),
+        )
+
+        pedido = self.criar_solicitacao("2", produto=kit)
+        itens = list(pedido.itens.order_by("produto__codigo"))
+
+        self.assertEqual(len(itens), 2)
+        self.assertTrue(all(item.kit_origem == kit for item in itens))
+        self.assertEqual(
+            {item.produto_id: item.quantidade for item in itens},
+            {
+                self.produto.pk: Decimal("2"),
+                segundo_componente.pk: Decimal("4"),
+            },
+        )
+
+        self.executar_acao(self.supply, pedido, "iniciar-conferencia")
+        self.executar_acao(self.supply, pedido, "encaminhar-aprovacao")
+        self.executar_acao(self.aprovador, pedido, "aprovar")
+        self.executar_acao(self.separacao, pedido, "iniciar-separacao")
+        self.executar_acao(
+            self.separacao,
+            pedido,
+            "concluir-separacao",
+            {
+                **{f"item_{item.pk}": str(item.quantidade) for item in itens},
+                "justificativa": "",
+            },
+        )
+
+        pedido.refresh_from_db()
+        self.produto.refresh_from_db()
+        segundo_componente.refresh_from_db()
+        self.assertEqual(pedido.status, "SEPARADO")
+        self.assertEqual(self.produto.estoque_atual, Decimal("98"))
+        self.assertEqual(segundo_componente.estoque_atual, Decimal("16"))
+        self.assertEqual(
+            Movimentacao.objects.filter(documento=f"PEDIDO-{pedido.pk}").count(),
+            2,
+        )
+
+        self.client.force_login(self.separacao)
+        resposta = self.client.get(reverse("pedidos:detalhe", args=[pedido.pk]))
+        self.assertContains(resposta, "Componente de KIT TESTE", count=2)
 
     def concluir_totalmente(self, pedido):
         item = pedido.itens.get()

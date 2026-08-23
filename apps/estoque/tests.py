@@ -4,9 +4,53 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Movimentacao, Produto
+from .models import ComposicaoKit, Movimentacao, Produto
 
 Usuario = get_user_model()
+
+
+class KitsPadraoTests(TestCase):
+    def test_kit_novo_autozoner_contem_todos_os_itens(self):
+        kit = Produto.objects.get(codigo="KIT-NOVO-AUTOZONER")
+
+        self.assertEqual(
+            set(kit.componentes_kit.values_list("item__nome", flat=True)),
+            {
+                "JACARÉ PARA CRACHÁ",
+                "CRACHÁS",
+                "PIN VIVA PROMESSA",
+                "SACOCHILA",
+                "COPO AUTOZONE",
+                "CANETA",
+                "CARTAO GRITO DE GUERRA",
+                "FOLDER AUTOZONE",
+                "CARTAO PROMESSA",
+                "CARTAO SWILE",
+            },
+        )
+        self.assertFalse(
+            kit.componentes_kit.exclude(quantidade=Decimal("1")).exists()
+        )
+
+    def test_kit_operacao_contem_todos_os_itens(self):
+        kit = Produto.objects.get(codigo="KIT-OPERACAO")
+
+        self.assertEqual(
+            set(kit.componentes_kit.values_list("item__nome", flat=True)),
+            {
+                "PIN VIVA PROMESSA",
+                "SACOCHILA",
+                "CANETA",
+                "CARTAO GRITO DE GUERRA",
+                "FOLDER AUTOZONE",
+                "CARTAO PROMESSA",
+                "GARRAFA PLASTICA",
+                "CARTAO SWILE",
+            },
+        )
+        self.assertFalse(
+            kit.componentes_kit.exclude(quantidade=Decimal("1")).exists()
+        )
 
 
 class AdminProdutoExcluirTudoTests(TestCase):

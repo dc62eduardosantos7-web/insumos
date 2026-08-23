@@ -29,7 +29,7 @@ def _carregar(pedido_id):
     return (
         Pedido.objects.select_for_update()
         .select_related("loja")
-        .prefetch_related("itens__produto")
+        .prefetch_related("itens__produto", "itens__kit_origem")
         .get(pk=pedido_id)
     )
 

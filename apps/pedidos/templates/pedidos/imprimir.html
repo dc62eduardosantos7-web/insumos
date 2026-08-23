@@ -62,7 +62,10 @@
             <tbody>
                 {% for item in pedido.itens.all %}
                 <tr>
-                    <td>{{ item.produto.nome }}</td>
+                    <td>
+                        {{ item.produto.nome }}
+                        {% if item.kit_origem %}<br><small>Componente de {{ item.kit_origem.nome }}</small>{% endif %}
+                    </td>
                     <td>{{ item.quantidade|floatformat:"-2" }}</td>
                     <td>{{ item.quantidade_aprovada|default:"-" }}</td>
                     <td>{{ item.quantidade_separada|floatformat:"-2" }}</td>
