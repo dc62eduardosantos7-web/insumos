@@ -1,10 +1,17 @@
 from django.contrib import admin
 
+from config.admin_mixins import ExcluirTudoAdminMixin
+
 from .models import Movimentacao, Produto
 
 
 @admin.register(Produto)
-class ProdutoAdmin(admin.ModelAdmin):
+class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
+    excluir_tudo_descricao = (
+        "Todos os produtos serão removidos, mas lojas, usuários, pedidos, "
+        "romaneios e estoque histórico serão preservados. Se houver produto "
+        "vinculado a um pedido ou movimentação, a operação inteira será cancelada."
+    )
     list_display = (
         "codigo",
         "nome",

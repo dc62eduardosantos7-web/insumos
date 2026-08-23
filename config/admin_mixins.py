@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -66,18 +67,26 @@ class ExcluirTudoAdminMixin:
                     level=messages.ERROR,
                 )
             else:
-                with transaction.atomic():
-                    total = self.model._default_manager.count()
-                    self.preparar_exclusao_total(request)
-                    self.model._default_manager.all().delete()
-
-                self.message_user(
-                    request,
-                    f"{total} registro(s) de {self.model._meta.verbose_name_plural} "
-                    "foram excluídos.",
-                    level=messages.SUCCESS,
-                )
-                return HttpResponseRedirect(self.get_changelist_url())
+                try:
+                    with transaction.atomic():
+                        total = self.model._default_manager.count()
+                        self.preparar_exclusao_total(request)
+                        self.model._default_manager.all().delete()
+                except ProtectedError:
+                    self.message_user(
+                        request,
+                        "A exclusão foi cancelada porque existem registros "
+                        "vinculados. Nenhum dado foi apagado.",
+                        level=messages.ERROR,
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        f"{total} registro(s) de "
+                        f"{self.model._meta.verbose_name_plural} foram excluídos.",
+                        level=messages.SUCCESS,
+                    )
+                    return HttpResponseRedirect(self.get_changelist_url())
 
         context = {
             **self.admin_site.each_context(request),
