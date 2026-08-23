@@ -25,6 +25,13 @@ class Pedido(models.Model):
     loja = models.ForeignKey(
         "lojas.Loja", on_delete=models.PROTECT, related_name="pedidos"
     )
+    romaneio = models.ForeignKey(
+        "romaneio.Romaneio",
+        on_delete=models.PROTECT,
+        related_name="pedidos",
+        null=True,
+        blank=True,
+    )
     lane = models.CharField(max_length=50, blank=True)
     data = models.DateField(default=timezone.localdate)
     status = models.CharField(max_length=25, choices=STATUS, default="ENVIADO_SUPPLY")

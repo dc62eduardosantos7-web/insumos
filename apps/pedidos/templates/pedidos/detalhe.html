@@ -10,6 +10,11 @@
     <div class="quick-actions">
         <a class="button secondary" href="{% url 'pedidos:lista' %}">Voltar</a>
         <a class="button primary" href="{% url 'pedidos:imprimir' pedido.pk %}">Imprimir</a>
+        {% if pedido.romaneio %}
+            {% if papel_usuario == PAPEL_SEPARACAO or papel_usuario == PAPEL_ADMIN %}
+            <a class="button success" href="{% url 'romaneio:imprimir' pedido.romaneio.pk %}">Romaneio consolidado</a>
+            {% endif %}
+        {% endif %}
     </div>
 </div>
 
@@ -101,7 +106,7 @@
 <section class="card action-card action-separation">
     <p class="eyebrow">Equipe de separação</p><h2>Registrar atendimento</h2>
     <div class="action-grid">
-        <form method="post" action="{% url 'pedidos:acao' pedido.pk 'concluir-separacao' %}">{% csrf_token %}{{ separacao_form.as_p }}<p class="form-note">Ao concluir, o estoque será baixado e o romaneio será gerado automaticamente.</p><button class="button success" type="submit">Concluir separação e finalizar</button></form>
+        <form method="post" action="{% url 'pedidos:acao' pedido.pk 'concluir-separacao' %}">{% csrf_token %}{{ separacao_form.as_p }}<p class="form-note">Ao concluir, o estoque será baixado e o pedido entrará no romaneio consolidado da loja.</p><button class="button success" type="submit">Concluir separação e finalizar</button></form>
         <form method="post" action="{% url 'pedidos:acao' pedido.pk 'devolver-supply-separacao' %}">{% csrf_token %}<label>Divergência encontrada</label><textarea name="justificativa" rows="2" required></textarea><button class="button secondary" type="submit">Devolver ao Supply Chain</button></form>
     </div>
 </section>

@@ -43,7 +43,7 @@ def _pedidos_do_usuario(usuario):
     papel = obter_papel(usuario)
     queryset = (
         Pedido.objects.select_related(
-            "loja", "criado_por", "conferido_por", "aprovado_por"
+            "loja", "romaneio", "criado_por", "conferido_por", "aprovado_por"
         )
         .prefetch_related("itens__produto")
         .all()
@@ -329,7 +329,7 @@ def acao(request, pk, acao):
                 quantidades=form.quantidades,
                 observacao=form.cleaned_data["justificativa"],
             )
-            mensagem = "Separação concluída, estoque baixado e romaneio gerado."
+            mensagem = "Separação concluída e pedido incluído no romaneio da loja."
         elif acao == "devolver-supply-separacao":
             _validar_acao(papel, PerfilUsuario.SEPARACAO)
             form = JustificativaForm(request.POST)
@@ -370,7 +370,12 @@ def imprimir(request, pk):
     pedido = _obter_pedido_visivel(request, pk)
     pedido = (
         Pedido.objects.select_related(
-            "loja", "criado_por", "conferido_por", "aprovado_por", "separado_por"
+            "loja",
+            "romaneio",
+            "criado_por",
+            "conferido_por",
+            "aprovado_por",
+            "separado_por",
         )
         .prefetch_related("itens__produto")
         .get(pk=pedido.pk)
@@ -390,9 +395,9 @@ def excluir(request, pk):
         messages.error(request, "Pedidos com estoque baixado não podem ser excluídos.")
         return redirect("pedidos:detalhe", pk=pk)
     numero = pedido.pk
-    romaneio = getattr(pedido, "romaneio", None)
-    if romaneio is not None:
-        romaneio.delete()
+    romaneio = pedido.romaneio
     pedido.delete()
+    if romaneio is not None and not romaneio.pedidos.exists():
+        romaneio.delete()
     messages.success(request, f"Pedido #{numero} excluído com sucesso.")
     return redirect("pedidos:lista")

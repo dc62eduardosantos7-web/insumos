@@ -11,8 +11,8 @@ class Romaneio(models.Model):
     ]
 
     numero = models.CharField("número", max_length=30, unique=True, blank=True)
-    pedido = models.OneToOneField(
-        "pedidos.Pedido", on_delete=models.PROTECT, related_name="romaneio"
+    loja = models.OneToOneField(
+        "lojas.Loja", on_delete=models.PROTECT, related_name="romaneio"
     )
     transportadora = models.CharField(max_length=120, blank=True)
     placa = models.CharField(max_length=10, blank=True)
@@ -33,4 +33,4 @@ class Romaneio(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.numero
+        return f"{self.numero} · {self.loja}"

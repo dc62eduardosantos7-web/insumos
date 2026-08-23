@@ -1,6 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Romaneios | Controle de Insumos{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Separação</p><h1>Romaneios</h1><p>Gerados automaticamente quando a separação é concluída.</p></div></div>
-<section class="card"><div class="section-title"><h2>Romaneios gerados</h2></div><div class="table-wrap"><table><thead><tr><th>Número</th><th>Pedido/Loja</th><th>Transportadora</th><th>Veículo</th><th>Motorista</th><th>Status</th>{% if pode_excluir %}<th></th>{% endif %}</tr></thead><tbody>{% for item in romaneios %}<tr><td>{{ item.numero }}</td><td>#{{ item.pedido_id }} · {{ item.pedido.loja }}</td><td>{{ item.transportadora|default:"—" }}</td><td>{{ item.placa|default:"—" }}</td><td>{{ item.motorista|default:"—" }}</td><td><span class="badge status">{{ item.get_status_display }}</span></td>{% if pode_excluir %}<td><form class="inline-delete-form" method="post" action="{% url 'romaneio:excluir' item.pk %}" onsubmit="return confirm('Excluir o romaneio {{ item.numero }}? Esta ação não poderá ser desfeita.');">{% csrf_token %}<button class="button danger compact" type="submit">Excluir</button></form></td>{% endif %}</tr>{% empty %}<tr><td colspan="7" class="empty">Nenhum romaneio gerado.</td></tr>{% endfor %}</tbody></table></div></section>
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">Separação</p>
+        <h1>Romaneios consolidados</h1>
+        <p>Cada loja possui um único romaneio, atualizado quando novos pedidos são separados.</p>
+    </div>
+</div>
+
+<section class="card">
+    <div class="section-title"><h2>Romaneios por loja</h2></div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Loja</th>
+                    <th>Pedidos consolidados</th>
+                    <th>Transportadora</th>
+                    <th>Veículo</th>
+                    <th>Motorista</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in romaneios %}
+                <tr>
+                    <td>{{ item.numero }}</td>
+                    <td>{{ item.loja }}<br><small>Lane {{ item.loja.lane|default:"—" }}</small></td>
+                    <td>{{ item.pedidos.count }} pedido{{ item.pedidos.count|pluralize:"s" }}</td>
+                    <td>{{ item.transportadora|default:"—" }}</td>
+                    <td>{{ item.placa|default:"—" }}</td>
+                    <td>{{ item.motorista|default:"—" }}</td>
+                    <td><span class="badge status">{{ item.get_status_display }}</span></td>
+                    <td>
+                        <div class="row-actions">
+                            <a class="button primary compact" href="{% url 'romaneio:imprimir' item.pk %}">Abrir e imprimir</a>
+                            {% if pode_excluir %}
+                            <form class="inline-delete-form" method="post" action="{% url 'romaneio:excluir' item.pk %}" onsubmit="return confirm('Excluir o romaneio {{ item.numero }}? Esta ação não poderá ser desfeita.');">
+                                {% csrf_token %}
+                                <button class="button danger compact" type="submit">Excluir</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="empty">Nenhum romaneio gerado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endblock %}

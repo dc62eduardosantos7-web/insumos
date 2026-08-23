@@ -52,8 +52,9 @@ O processo substitui a planilha pelo fluxo abaixo:
 3. O supervisor/gerente aprova, ajusta e aprova, devolve ou recusa.
 4. A equipe de separação registra o atendimento total, parcial, falta de
    estoque ou devolução por divergência.
-5. Ao concluir a separação, o estoque é baixado e o romaneio é gerado
-   automaticamente. Esse é o fim do fluxo.
+5. Ao concluir a separação, o estoque é baixado e o pedido entra no romaneio
+   consolidado da loja. Cada loja possui um único romaneio, que reúne todos os
+   seus pedidos separados. Esse é o fim do fluxo.
 
 A loja visualiza somente seus próprios pedidos. Supply Chain, aprovadores e
 separação visualizam a fila geral, mas cada perfil recebe somente os botões

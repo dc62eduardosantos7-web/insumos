@@ -254,8 +254,8 @@ def concluir_separacao(pedido_id, *, usuario, quantidades, observacao=""):
     if observacao:
         texto = f"{observacao}. {texto}"
     agora = timezone.now()
-    romaneio, _ = Romaneio.objects.get_or_create(
-        pedido=pedido,
+    romaneio, _ = Romaneio.objects.select_for_update().get_or_create(
+        loja=pedido.loja,
         defaults={"status": "GERADO"},
     )
     if romaneio.status != "GERADO":
@@ -272,6 +272,7 @@ def concluir_separacao(pedido_id, *, usuario, quantidades, observacao=""):
         ),
         observacao=texto,
         campos={
+            "romaneio": romaneio,
             "separado_por": usuario,
             "separado_em": agora,
             "estoque_baixado_em": agora,
@@ -286,13 +287,15 @@ def cancelar(pedido_id, *, usuario, justificativa):
         raise ValidationError(
             "Pedidos com separação concluída não podem ser cancelados sem estorno de estoque."
         )
-    if hasattr(pedido, "romaneio"):
-        pedido.romaneio.status = "CANCELADO"
-        pedido.romaneio.save(update_fields=["status"])
+    romaneio = pedido.romaneio if pedido.romaneio_id else None
+    if romaneio and not romaneio.pedidos.exclude(pk=pedido.pk).exists():
+        romaneio.status = "CANCELADO"
+        romaneio.save(update_fields=["status"])
     return _mudar_status(
         pedido,
         "CANCELADO",
         usuario=usuario,
         acao="Pedido cancelado",
         observacao=justificativa,
+        campos={"romaneio": None} if romaneio else None,
     )

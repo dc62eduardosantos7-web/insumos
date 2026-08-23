@@ -45,8 +45,8 @@ class FluxoPedidoTests(TestCase):
         PerfilUsuario.objects.create(usuario=usuario, papel=papel, loja=loja)
         return usuario
 
-    def criar_solicitacao(self, quantidade="10"):
-        self.client.force_login(self.usuario_loja)
+    def criar_solicitacao(self, quantidade="10", usuario=None):
+        self.client.force_login(usuario or self.usuario_loja)
         resposta = self.client.post(
             reverse("pedidos:lista"),
             {
@@ -63,6 +63,21 @@ class FluxoPedidoTests(TestCase):
         )
         self.assertEqual(resposta.status_code, 302)
         return Pedido.objects.latest("pk")
+
+    def concluir_totalmente(self, pedido):
+        item = pedido.itens.get()
+        self.executar_acao(self.supply, pedido, "iniciar-conferencia")
+        self.executar_acao(self.supply, pedido, "encaminhar-aprovacao")
+        self.executar_acao(self.aprovador, pedido, "aprovar")
+        self.executar_acao(self.separacao, pedido, "iniciar-separacao")
+        self.executar_acao(
+            self.separacao,
+            pedido,
+            "concluir-separacao",
+            {f"item_{item.pk}": str(item.quantidade), "justificativa": ""},
+        )
+        pedido.refresh_from_db()
+        return pedido
 
     def executar_acao(self, usuario, pedido, acao, dados=None):
         self.client.force_login(usuario)
@@ -139,7 +154,11 @@ class FluxoPedidoTests(TestCase):
         self.assertEqual(pedido.separado_por, self.separacao)
         self.assertEqual(Movimentacao.objects.filter(documento=f"PEDIDO-{pedido.pk}").count(), 1)
         self.assertEqual(Movimentacao.objects.get().quantidade, Decimal("6"))
-        self.assertTrue(Romaneio.objects.filter(pedido=pedido, status="GERADO").exists())
+        self.assertTrue(
+            Romaneio.objects.filter(
+                pedidos=pedido, loja=self.loja, status="GERADO"
+            ).exists()
+        )
 
         self.executar_acao(
             self.separacao,
@@ -151,6 +170,38 @@ class FluxoPedidoTests(TestCase):
         self.assertEqual(self.produto.estoque_atual, Decimal("94"))
         self.assertEqual(Movimentacao.objects.count(), 1)
         self.assertGreaterEqual(pedido.historico.count(), 7)
+
+    def test_pedidos_da_mesma_loja_compartilham_um_romaneio(self):
+        primeiro = self.concluir_totalmente(self.criar_solicitacao("4"))
+        segundo = self.concluir_totalmente(self.criar_solicitacao("6"))
+
+        self.assertEqual(Romaneio.objects.filter(loja=self.loja).count(), 1)
+        romaneio = Romaneio.objects.get(loja=self.loja)
+        self.assertEqual(primeiro.romaneio, romaneio)
+        self.assertEqual(segundo.romaneio, romaneio)
+        self.assertEqual(
+            list(romaneio.pedidos.order_by("pk")),
+            [primeiro, segundo],
+        )
+
+        self.client.force_login(self.separacao)
+        resposta = self.client.get(reverse("romaneio:imprimir", args=[romaneio.pk]))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "ROMANEIO CONSOLIDADO DE INSUMOS")
+        self.assertContains(resposta, f"#{primeiro.pk}")
+        self.assertContains(resposta, f"#{segundo.pk}")
+        self.assertContains(resposta, ">10<", html=False)
+
+    def test_lojas_diferentes_recebem_romaneios_diferentes(self):
+        primeiro = self.concluir_totalmente(self.criar_solicitacao("3"))
+        segundo = self.concluir_totalmente(
+            self.criar_solicitacao("2", usuario=self.usuario_outra_loja)
+        )
+
+        self.assertEqual(Romaneio.objects.count(), 2)
+        self.assertNotEqual(primeiro.romaneio_id, segundo.romaneio_id)
+        self.assertEqual(primeiro.romaneio.loja, self.loja)
+        self.assertEqual(segundo.romaneio.loja, self.outra_loja)
 
     def test_devolucoes_e_recusa_mantem_auditoria(self):
         pedido = self.criar_solicitacao()
