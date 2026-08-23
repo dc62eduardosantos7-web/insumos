@@ -1,10 +1,16 @@
 from django.contrib import admin
 
+from config.admin_mixins import ExcluirTudoAdminMixin
+
 from .models import Romaneio
 
 
 @admin.register(Romaneio)
-class RomaneioAdmin(admin.ModelAdmin):
+class RomaneioAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
+    excluir_tudo_descricao = (
+        "Os pedidos serão preservados e apenas deixarão de estar vinculados a um "
+        "romaneio. Lojas, produtos, estoque e usuários não serão alterados."
+    )
     list_display = (
         "numero",
         "loja",
@@ -22,3 +28,8 @@ class RomaneioAdmin(admin.ModelAdmin):
     @admin.display(description="pedidos")
     def total_pedidos(self, obj):
         return obj.pedidos.count()
+
+    def preparar_exclusao_total(self, request):
+        from apps.pedidos.models import Pedido
+
+        Pedido.objects.filter(romaneio__isnull=False).update(romaneio=None)

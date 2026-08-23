@@ -9,7 +9,7 @@ from apps.lojas.models import Loja
 from apps.romaneio.models import Romaneio
 from apps.usuarios.models import PerfilUsuario
 
-from .models import Pedido
+from .models import HistoricoPedido, ItemPedido, Pedido
 
 Usuario = get_user_model()
 
@@ -325,3 +325,94 @@ class FluxoPedidoTests(TestCase):
         self.assertRedirects(
             resposta, f"{reverse('login')}?next={reverse('pedidos:lista')}"
         )
+
+
+class AdminExclusaoTotalTests(TestCase):
+    def setUp(self):
+        self.admin = Usuario.objects.create_superuser(
+            username="admin-exclusao",
+            email="admin@example.com",
+            password="teste123",
+        )
+        self.client.force_login(self.admin)
+        self.loja = Loja.objects.create(
+            codigo="900", nome="Loja Teste Admin", lane="90"
+        )
+        self.produto = Produto.objects.create(
+            codigo="INS-900",
+            nome="Produto Teste Admin",
+            estoque_atual=Decimal("50"),
+            unidade="UN",
+        )
+
+    def criar_dados(self):
+        romaneio = Romaneio.objects.create(loja=self.loja)
+        pedido = Pedido.objects.create(
+            loja=self.loja,
+            romaneio=romaneio,
+            lane=self.loja.lane,
+            status="SEPARADO",
+            criado_por=self.admin,
+        )
+        ItemPedido.objects.create(
+            pedido=pedido,
+            produto=self.produto,
+            quantidade=Decimal("2"),
+            quantidade_separada=Decimal("2"),
+        )
+        HistoricoPedido.objects.create(
+            pedido=pedido,
+            acao="Pedido separado",
+            status_novo="SEPARADO",
+            usuario=self.admin,
+        )
+        return pedido, romaneio
+
+    def test_admin_exibe_botao_nas_duas_paginas(self):
+        resposta = self.client.get(reverse("admin:pedidos_pedido_changelist"))
+        self.assertContains(resposta, "Excluir tudo")
+
+        resposta = self.client.get(reverse("admin:romaneio_romaneio_changelist"))
+        self.assertContains(resposta, "Excluir tudo")
+
+    def test_excluir_todos_pedidos_preserva_base_cadastral(self):
+        _pedido, romaneio = self.criar_dados()
+        url = reverse("admin:pedidos_pedido_excluir_tudo")
+
+        resposta = self.client.post(url, {"confirmacao": "sim"})
+
+        self.assertRedirects(resposta, reverse("admin:pedidos_pedido_changelist"))
+        self.assertFalse(Pedido.objects.exists())
+        self.assertFalse(ItemPedido.objects.exists())
+        self.assertFalse(HistoricoPedido.objects.exists())
+        self.assertTrue(Romaneio.objects.filter(pk=romaneio.pk).exists())
+        self.assertTrue(Loja.objects.filter(pk=self.loja.pk).exists())
+        self.assertTrue(Produto.objects.filter(pk=self.produto.pk).exists())
+        self.assertTrue(Usuario.objects.filter(pk=self.admin.pk).exists())
+
+    def test_excluir_romaneios_desvincula_e_preserva_pedidos(self):
+        pedido, _romaneio = self.criar_dados()
+        url = reverse("admin:romaneio_romaneio_excluir_tudo")
+
+        resposta = self.client.post(url, {"confirmacao": "sim"})
+
+        self.assertRedirects(
+            resposta, reverse("admin:romaneio_romaneio_changelist")
+        )
+        self.assertFalse(Romaneio.objects.exists())
+        pedido.refresh_from_db()
+        self.assertIsNone(pedido.romaneio_id)
+        self.assertTrue(Loja.objects.filter(pk=self.loja.pk).exists())
+        self.assertTrue(Produto.objects.filter(pk=self.produto.pk).exists())
+
+    def test_confirmacao_e_obrigatoria(self):
+        self.criar_dados()
+        url = reverse("admin:pedidos_pedido_excluir_tudo")
+
+        resposta = self.client.post(url, {})
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(
+            resposta, "Marque a confirmação antes de excluir os registros."
+        )
+        self.assertTrue(Pedido.objects.exists())

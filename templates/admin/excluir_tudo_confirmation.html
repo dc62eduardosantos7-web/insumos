@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Início</a>
+    &rsaquo; <a href="{{ voltar_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; Excluir tudo
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="delete-confirmation">
+    <h1>{{ title }}</h1>
+
+    {% if total %}
+        <p>
+            Você está prestes a excluir permanentemente
+            <strong>{{ total }} registro(s)</strong> de {{ opts.verbose_name_plural }}.
+        </p>
+        {% if descricao %}<p>{{ descricao }}</p>{% endif %}
+        <p><strong>Esta operação não pode ser desfeita.</strong></p>
+
+        <form method="post">
+            {% csrf_token %}
+            <p>
+                <label>
+                    <input type="checkbox" name="confirmacao" value="sim" required>
+                    Confirmo que desejo excluir todos os {{ opts.verbose_name_plural }}.
+                </label>
+            </p>
+            <div>
+                <input type="submit" value="Sim, excluir tudo" class="default">
+                <a href="{{ voltar_url }}" class="button cancel-link">Cancelar</a>
+            </div>
+        </form>
+    {% else %}
+        <p>Não há registros para excluir.</p>
+        <a href="{{ voltar_url }}" class="button">Voltar</a>
+    {% endif %}
+</div>
+{% endblock %}

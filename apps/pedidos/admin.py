@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from config.admin_mixins import ExcluirTudoAdminMixin
+
 from .models import HistoricoPedido, ItemPedido, Pedido
 
 
@@ -23,7 +25,11 @@ class HistoricoPedidoInline(admin.TabularInline):
 
 
 @admin.register(Pedido)
-class PedidoAdmin(admin.ModelAdmin):
+class PedidoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
+    excluir_tudo_descricao = (
+        "Os itens e históricos vinculados aos pedidos também serão removidos. "
+        "Produtos, lojas, estoque, usuários e romaneios não serão excluídos."
+    )
     list_display = (
         "id",
         "loja",
