@@ -59,7 +59,7 @@
                 <thead><tr><th>Tipo</th><th>Produto</th><th>Quantidade</th></tr></thead>
                 <tbody>
                 {% for mov in movimentacoes %}
-                    <tr><td><span class="badge {% if mov.tipo == 'E' %}positive{% else %}negative{% endif %}">{{ mov.get_tipo_display }}</span></td><td>{{ mov.produto.nome }}</td><td>{{ mov.quantidade }} {{ mov.produto.unidade }}</td></tr>
+                    <tr><td><span class="badge {% if mov.tipo == 'E' %}positive{% else %}negative{% endif %}">{{ mov.get_tipo_display }}</span></td><td>{{ mov.nome_produto }}</td><td>{{ mov.quantidade }} {{ mov.unidade_produto }}</td></tr>
                 {% empty %}
                     <tr><td colspan="3" class="empty">Nenhuma movimentação registrada.</td></tr>
                 {% endfor %}

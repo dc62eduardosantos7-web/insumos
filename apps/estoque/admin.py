@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Q
 
 from config.admin_mixins import ExcluirTudoAdminMixin
 
@@ -15,10 +16,10 @@ class ComposicaoKitInline(admin.TabularInline):
 @admin.register(Produto)
 class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
     excluir_tudo_descricao = (
-        "Todos os produtos, inclusive os arquivados, as composições dos kits "
-        "e todo o histórico de entradas e saídas do estoque serão apagados "
-        "permanentemente. Pedidos, romaneios, lojas e usuários serão preservados. "
-        "Se existir produto vinculado a um pedido, a operação inteira será cancelada."
+        "Somente os produtos comuns serão apagados. KIT NOVO AUTOZONER, "
+        "KIT OPERAÇÃO e todos os componentes necessários para esses kits serão "
+        "preservados e reativados. Histórico, pedidos, romaneios, lojas e usuários "
+        "não serão apagados. Produtos usados em pedidos antigos ficarão arquivados."
     )
     list_display = (
         "codigo",
@@ -47,25 +48,65 @@ class ProdutoAdmin(ExcluirTudoAdminMixin, admin.ModelAdmin):
         return super().get_queryset(request).filter(ativo=True)
 
     def get_excluir_tudo_queryset(self, request):
-        return Produto.objects.all()
+        preservados = set(
+            Produto.objects.filter(
+                codigo__in=("KIT-NOVO-AUTOZONER", "KIT-OPERACAO")
+            ).values_list("pk", flat=True)
+        )
+        preservados.update(
+            ComposicaoKit.objects.filter(kit_id__in=preservados).values_list(
+                "item_id", flat=True
+            )
+        )
+        return Produto.objects.exclude(pk__in=preservados)
 
     def executar_exclusao_total(self, request):
-        total_produtos = Produto.objects.count()
-        total_movimentacoes = Movimentacao.objects.count()
-        ComposicaoKit.objects.all().delete()
-        Movimentacao.objects.all().delete()
-        Produto.objects.all().delete()
+        alvos = self.get_excluir_tudo_queryset(request)
+        vinculados = alvos.filter(
+            Q(itens_pedido__isnull=False)
+            | Q(itens_pedido_como_kit__isnull=False)
+        ).distinct()
+        ids_vinculados = list(vinculados.values_list("pk", flat=True))
+        total_arquivados = vinculados.update(ativo=False)
+        deletaveis = alvos.exclude(pk__in=ids_vinculados)
+        total_excluidos = deletaveis.count()
+        deletaveis.delete()
+
+        kits = Produto.objects.filter(
+            codigo__in=("KIT-NOVO-AUTOZONER", "KIT-OPERACAO")
+        )
+        ids_preservados = set(kits.values_list("pk", flat=True))
+        ids_preservados.update(
+            ComposicaoKit.objects.filter(kit_id__in=ids_preservados).values_list(
+                "item_id", flat=True
+            )
+        )
+        Produto.objects.filter(pk__in=ids_preservados).update(ativo=True)
         return (
-            f"{total_produtos} produto(s) e {total_movimentacoes} movimentação(ões) "
-            "de estoque foram excluídos permanentemente."
+            f"{total_excluidos} produto(s) comum(ns) foram excluídos e "
+            f"{total_arquivados} permaneceram arquivados por estarem em pedidos. "
+            "Os kits, seus componentes e o histórico foram preservados."
         )
 
 
 @admin.register(Movimentacao)
 class MovimentacaoAdmin(admin.ModelAdmin):
-    list_display = ("criado_em", "tipo", "produto", "quantidade", "loja", "usuario")
+    list_display = (
+        "criado_em",
+        "tipo",
+        "produto_historico",
+        "quantidade",
+        "loja",
+        "usuario",
+    )
     list_filter = ("tipo", "criado_em")
-    search_fields = ("produto__codigo", "produto__nome", "documento")
+    search_fields = (
+        "produto__codigo",
+        "produto__nome",
+        "produto_codigo",
+        "produto_nome",
+        "documento",
+    )
     readonly_fields = (
         "tipo",
         "produto",
@@ -76,6 +117,10 @@ class MovimentacaoAdmin(admin.ModelAdmin):
         "usuario",
         "criado_em",
     )
+
+    @admin.display(description="produto")
+    def produto_historico(self, obj):
+        return f"{obj.codigo_produto} - {obj.nome_produto}"
 
     def has_add_permission(self, request):
         return False

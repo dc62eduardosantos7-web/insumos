@@ -107,8 +107,15 @@ class Movimentacao(models.Model):
 
     tipo = models.CharField(max_length=1, choices=TIPOS)
     produto = models.ForeignKey(
-        Produto, on_delete=models.PROTECT, related_name="movimentacoes"
+        Produto,
+        on_delete=models.SET_NULL,
+        related_name="movimentacoes",
+        null=True,
+        blank=True,
     )
+    produto_codigo = models.CharField(max_length=30, blank=True, editable=False)
+    produto_nome = models.CharField(max_length=150, blank=True, editable=False)
+    produto_unidade = models.CharField(max_length=3, blank=True, editable=False)
     loja = models.ForeignKey(
         "lojas.Loja",
         on_delete=models.PROTECT,
@@ -143,5 +150,33 @@ class Movimentacao(models.Model):
             )
         ]
 
+    def save(self, *args, **kwargs):
+        if self.produto_id:
+            self.produto_codigo = self.produto.codigo
+            self.produto_nome = self.produto.nome
+            self.produto_unidade = self.produto.unidade
+        super().save(*args, **kwargs)
+
+    @property
+    def codigo_produto(self):
+        return self.produto_codigo or (
+            self.produto.codigo if self.produto_id else "PRODUTO REMOVIDO"
+        )
+
+    @property
+    def nome_produto(self):
+        return self.produto_nome or (
+            self.produto.nome if self.produto_id else "Produto removido"
+        )
+
+    @property
+    def unidade_produto(self):
+        return self.produto_unidade or (
+            self.produto.unidade if self.produto_id else "UN"
+        )
+
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.produto} - {self.quantidade}"
+        return (
+            f"{self.get_tipo_display()} - {self.codigo_produto} - "
+            f"{self.quantidade}"
+        )

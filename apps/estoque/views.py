@@ -157,6 +157,8 @@ def historico(request):
         lista = lista.filter(
             Q(produto__codigo__icontains=termo)
             | Q(produto__nome__icontains=termo)
+            | Q(produto_codigo__icontains=termo)
+            | Q(produto_nome__icontains=termo)
             | Q(documento__icontains=termo)
         )
     pagina = Paginator(lista, 25).get_page(request.GET.get("page"))
