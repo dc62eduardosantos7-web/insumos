@@ -27,6 +27,13 @@ class UsuarioAdmin(DjangoUserAdmin):
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ("usuario", "papel", "loja", "ativo", "deve_trocar_senha")
+    list_display = (
+        "usuario",
+        "papel",
+        "loja",
+        "ativo",
+        "deve_trocar_senha",
+        "privilegios_admin_gerenciados",
+    )
     list_filter = ("papel", "ativo", "deve_trocar_senha")
     search_fields = ("usuario__username", "usuario__first_name", "loja__codigo")

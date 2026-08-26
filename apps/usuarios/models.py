@@ -38,6 +38,14 @@ class PerfilUsuario(models.Model):
         default=False,
         help_text="Redireciona o usuário para cadastrar uma nova senha após entrar.",
     )
+    privilegios_admin_gerenciados = models.BooleanField(
+        default=False,
+        editable=False,
+        help_text=(
+            "Indica que is_staff/is_superuser foram concedidos automaticamente "
+            "pelo papel Administrador."
+        ),
+    )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 

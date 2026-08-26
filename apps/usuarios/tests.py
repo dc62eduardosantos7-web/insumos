@@ -144,3 +144,71 @@ class TrocaSenhaObrigatoriaTests(TestCase):
         self.usuario.refresh_from_db()
         self.assertFalse(self.perfil.deve_trocar_senha)
         self.assertTrue(self.usuario.check_password("MinhaSenhaNova@7601"))
+
+
+class PrivilegiosAdministradorTests(TestCase):
+    def test_promove_adm_e_concede_acesso_total_ao_django_admin(self):
+        usuario = Usuario.objects.create_user(username="novo-admin", password="Senha@123")
+
+        perfil = PerfilUsuario.objects.create(
+            usuario=usuario,
+            papel=PerfilUsuario.ADMIN,
+        )
+
+        usuario.refresh_from_db()
+        perfil.refresh_from_db()
+        self.assertTrue(usuario.is_staff)
+        self.assertTrue(usuario.is_superuser)
+        self.assertTrue(perfil.privilegios_admin_gerenciados)
+        self.client.force_login(usuario)
+        self.assertEqual(self.client.get(reverse("admin:index")).status_code, 200)
+
+    def test_remove_adm_e_revoga_privilegios_concedidos_automaticamente(self):
+        usuario = Usuario.objects.create_user(username="admin-temporario")
+        perfil = PerfilUsuario.objects.create(
+            usuario=usuario,
+            papel=PerfilUsuario.ADMIN,
+        )
+
+        perfil.papel = PerfilUsuario.SUPPLY
+        perfil.save()
+
+        usuario.refresh_from_db()
+        perfil.refresh_from_db()
+        self.assertFalse(usuario.is_staff)
+        self.assertFalse(usuario.is_superuser)
+        self.assertFalse(perfil.privilegios_admin_gerenciados)
+
+    def test_desativar_perfil_adm_revoga_privilegios_gerenciados(self):
+        usuario = Usuario.objects.create_user(username="admin-inativo")
+        perfil = PerfilUsuario.objects.create(
+            usuario=usuario,
+            papel=PerfilUsuario.ADMIN,
+        )
+
+        perfil.ativo = False
+        perfil.save()
+
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.is_staff)
+        self.assertFalse(usuario.is_superuser)
+
+    def test_superusuario_principal_e_preservado_ao_remover_papel_adm(self):
+        usuario = Usuario.objects.create_superuser(
+            username="admin-principal",
+            email="principal@example.com",
+            password="Senha@123",
+        )
+        perfil = PerfilUsuario.objects.create(
+            usuario=usuario,
+            papel=PerfilUsuario.ADMIN,
+        )
+
+        perfil.papel = PerfilUsuario.SUPPLY
+        perfil.save()
+
+        usuario.refresh_from_db()
+        perfil.refresh_from_db()
+        self.assertTrue(usuario.is_staff)
+        self.assertTrue(usuario.is_superuser)
+        self.assertFalse(perfil.privilegios_admin_gerenciados)
